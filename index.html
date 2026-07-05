@@ -30,6 +30,7 @@
       }
 
       .map-wrap {
+        position: relative;
         height: 55vh;
         min-height: 340px;
         background: #dce9e6;
@@ -42,6 +43,45 @@
         height: 100%;
         border: 0;
         background: #dce9e6;
+      }
+
+      .map-fallback {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        align-content: center;
+        gap: 12px;
+        padding: 22px;
+        background:
+          linear-gradient(rgba(47, 111, 159, 0.08) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(47, 111, 159, 0.08) 1px, transparent 1px),
+          #dce9e6;
+        background-size: 42px 42px;
+        text-align: center;
+        z-index: 0;
+      }
+
+      .map-fallback[hidden] {
+        display: none;
+      }
+
+      .map-fallback-title {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 850;
+      }
+
+      .map-fallback-copy {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.5;
+      }
+
+      .map-fallback-links {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
       }
 
       .panel {
@@ -324,6 +364,14 @@
   </head>
   <body>
     <section class="map-wrap" aria-label="Map">
+      <div id="mapFallback" class="map-fallback" hidden>
+        <p class="map-fallback-title">Map preview did not load</p>
+        <p id="mapFallbackCoords" class="map-fallback-copy">Use the links below to open this location in a map app.</p>
+        <div class="map-fallback-links">
+          <a id="fallbackOsmLink" class="link-button" href="https://www.openstreetmap.org/" target="_blank" rel="noreferrer">OpenStreetMap</a>
+          <a id="fallbackAppleLink" class="link-button" href="https://maps.apple.com/" target="_blank" rel="noreferrer">Apple Maps</a>
+        </div>
+      </div>
       <iframe id="mapFrame" title="Random place map" loading="eager"></iframe>
     </section>
 
@@ -642,6 +690,10 @@
         lng: document.querySelector("#lngValue"),
         mapLink: document.querySelector("#openMapLink"),
         streetLink: document.querySelector("#streetViewLink"),
+        mapFallback: document.querySelector("#mapFallback"),
+        mapFallbackCoords: document.querySelector("#mapFallbackCoords"),
+        fallbackOsmLink: document.querySelector("#fallbackOsmLink"),
+        fallbackAppleLink: document.querySelector("#fallbackAppleLink"),
         favoriteList: document.querySelector("#favoriteList"),
         favoriteCount: document.querySelector("#favoriteCount"),
       };
@@ -649,6 +701,7 @@
       const FAVORITES_KEY = "randomPlaceExplorerFavorites";
       let currentPlace = null;
       let favorites = loadFavorites();
+      let mapFallbackTimer;
 
       function buildCityOptions() {
         elements.city.innerHTML = citySeeds
@@ -801,6 +854,14 @@
         elements.frame.src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${encodeCoord(lat, lng)}`;
         elements.mapLink.href = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=${zoom}/${lat}/${lng}`;
         elements.streetLink.href = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${encodeCoord(lat, lng)}`;
+        elements.fallbackOsmLink.href = elements.mapLink.href;
+        elements.fallbackAppleLink.href = `https://maps.apple.com/?ll=${lat},${lng}&q=${encodeURIComponent("Random Place")}`;
+        elements.mapFallbackCoords.textContent = `${formatCoord(lat)}, ${formatCoord(lng)} · use the links below to open this location in a map app.`;
+        elements.mapFallback.hidden = true;
+        window.clearTimeout(mapFallbackTimer);
+        mapFallbackTimer = window.setTimeout(() => {
+          elements.mapFallback.hidden = false;
+        }, 4500);
       }
 
       function loadFavorites() {
