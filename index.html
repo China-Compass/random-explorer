@@ -38,6 +38,8 @@
       }
 
       iframe {
+        position: relative;
+        z-index: 1;
         display: block;
         width: 100%;
         height: 100%;
@@ -58,7 +60,7 @@
           #dce9e6;
         background-size: 42px 42px;
         text-align: center;
-        z-index: 0;
+        z-index: 2;
       }
 
       .map-fallback[hidden] {
@@ -82,6 +84,10 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 10px;
+      }
+
+      .map-fallback-links.extra {
+        grid-template-columns: repeat(3, 1fr);
       }
 
       .panel {
@@ -176,6 +182,12 @@
       .link-row {
         display: grid;
         grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .china-map-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
         gap: 10px;
       }
 
@@ -371,6 +383,11 @@
           <a id="fallbackOsmLink" class="link-button" href="https://www.openstreetmap.org/" target="_blank" rel="noreferrer">OpenStreetMap</a>
           <a id="fallbackAppleLink" class="link-button" href="https://maps.apple.com/" target="_blank" rel="noreferrer">Apple Maps</a>
         </div>
+        <div class="map-fallback-links extra">
+          <a id="fallbackAmapLink" class="link-button" href="https://www.amap.com/" target="_blank" rel="noreferrer">Amap</a>
+          <a id="fallbackBaiduLink" class="link-button" href="https://map.baidu.com/" target="_blank" rel="noreferrer">Baidu</a>
+          <a id="fallbackTencentLink" class="link-button" href="https://map.qq.com/" target="_blank" rel="noreferrer">Tencent</a>
+        </div>
       </div>
       <iframe id="mapFrame" title="Random place map" loading="eager"></iframe>
     </section>
@@ -441,6 +458,11 @@
         <div class="link-row">
           <a id="openMapLink" class="link-button" href="https://www.openstreetmap.org/" target="_blank" rel="noreferrer">Open Map</a>
           <a id="streetViewLink" class="link-button street-button" href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=31.2304%2C121.4737" target="_blank" rel="noreferrer">Street View</a>
+        </div>
+        <div class="china-map-row">
+          <a id="amapLink" class="link-button" href="https://www.amap.com/" target="_blank" rel="noreferrer">Amap</a>
+          <a id="baiduMapLink" class="link-button" href="https://map.baidu.com/" target="_blank" rel="noreferrer">Baidu</a>
+          <a id="tencentMapLink" class="link-button" href="https://map.qq.com/" target="_blank" rel="noreferrer">Tencent</a>
         </div>
       </div>
 
@@ -690,10 +712,16 @@
         lng: document.querySelector("#lngValue"),
         mapLink: document.querySelector("#openMapLink"),
         streetLink: document.querySelector("#streetViewLink"),
+        amapLink: document.querySelector("#amapLink"),
+        baiduMapLink: document.querySelector("#baiduMapLink"),
+        tencentMapLink: document.querySelector("#tencentMapLink"),
         mapFallback: document.querySelector("#mapFallback"),
         mapFallbackCoords: document.querySelector("#mapFallbackCoords"),
         fallbackOsmLink: document.querySelector("#fallbackOsmLink"),
         fallbackAppleLink: document.querySelector("#fallbackAppleLink"),
+        fallbackAmapLink: document.querySelector("#fallbackAmapLink"),
+        fallbackBaiduLink: document.querySelector("#fallbackBaiduLink"),
+        fallbackTencentLink: document.querySelector("#fallbackTencentLink"),
         favoriteList: document.querySelector("#favoriteList"),
         favoriteCount: document.querySelector("#favoriteCount"),
       };
@@ -842,6 +870,66 @@
         return `${lat}%2C${lng}`;
       }
 
+      function isInMainlandChina(lat, lng) {
+        return lng >= 73.66 && lng <= 135.05 && lat >= 3.86 && lat <= 53.55;
+      }
+
+      function transformLat(x, y) {
+        let ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
+        ret += ((20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * 2.0) / 3.0;
+        ret += ((20.0 * Math.sin(y * Math.PI) + 40.0 * Math.sin((y / 3.0) * Math.PI)) * 2.0) / 3.0;
+        ret += ((160.0 * Math.sin((y / 12.0) * Math.PI) + 320 * Math.sin((y * Math.PI) / 30.0)) * 2.0) / 3.0;
+        return ret;
+      }
+
+      function transformLng(x, y) {
+        let ret = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
+        ret += ((20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * 2.0) / 3.0;
+        ret += ((20.0 * Math.sin(x * Math.PI) + 40.0 * Math.sin((x / 3.0) * Math.PI)) * 2.0) / 3.0;
+        ret += ((150.0 * Math.sin((x / 12.0) * Math.PI) + 300.0 * Math.sin((x / 30.0) * Math.PI)) * 2.0) / 3.0;
+        return ret;
+      }
+
+      function wgs84ToGcj02(lat, lng) {
+        if (!isInMainlandChina(lat, lng)) return { lat, lng };
+        const a = 6378245.0;
+        const ee = 0.00669342162296594323;
+        let dLat = transformLat(lng - 105.0, lat - 35.0);
+        let dLng = transformLng(lng - 105.0, lat - 35.0);
+        const radLat = (lat / 180.0) * Math.PI;
+        let magic = Math.sin(radLat);
+        magic = 1 - ee * magic * magic;
+        const sqrtMagic = Math.sqrt(magic);
+        dLat = (dLat * 180.0) / (((a * (1 - ee)) / (magic * sqrtMagic)) * Math.PI);
+        dLng = (dLng * 180.0) / ((a / sqrtMagic) * Math.cos(radLat) * Math.PI);
+        return { lat: lat + dLat, lng: lng + dLng };
+      }
+
+      function gcj02ToBd09(lat, lng) {
+        const z = Math.sqrt(lng * lng + lat * lat) + 0.00002 * Math.sin(lat * Math.PI * 3000.0 / 180.0);
+        const theta = Math.atan2(lat, lng) + 0.000003 * Math.cos(lng * Math.PI * 3000.0 / 180.0);
+        return {
+          lat: z * Math.sin(theta) + 0.006,
+          lng: z * Math.cos(theta) + 0.0065,
+        };
+      }
+
+      function updateChinaMapLinks(lat, lng, title) {
+        const gcj = wgs84ToGcj02(lat, lng);
+        const bd = gcj02ToBd09(gcj.lat, gcj.lng);
+        const encodedTitle = encodeURIComponent(title || "Random Place");
+        const amapUrl = `https://uri.amap.com/marker?position=${gcj.lng},${gcj.lat}&name=${encodedTitle}`;
+        const baiduUrl = `https://api.map.baidu.com/marker?location=${bd.lat},${bd.lng}&title=${encodedTitle}&content=${encodedTitle}&output=html&src=random-place-explorer`;
+        const tencentUrl = `https://apis.map.qq.com/uri/v1/marker?marker=coord:${gcj.lat},${gcj.lng};title:${encodedTitle}`;
+
+        elements.amapLink.href = amapUrl;
+        elements.baiduMapLink.href = baiduUrl;
+        elements.tencentMapLink.href = tencentUrl;
+        elements.fallbackAmapLink.href = amapUrl;
+        elements.fallbackBaiduLink.href = baiduUrl;
+        elements.fallbackTencentLink.href = tencentUrl;
+      }
+
       function updateMap(lat, lng, zoom) {
         const delta = zoom >= 13 ? 0.025 : zoom >= 10 ? 0.08 : 1.2;
         const bbox = [
@@ -861,7 +949,7 @@
         window.clearTimeout(mapFallbackTimer);
         mapFallbackTimer = window.setTimeout(() => {
           elements.mapFallback.hidden = false;
-        }, 4500);
+        }, 12000);
       }
 
       function loadFavorites() {
@@ -946,6 +1034,11 @@
         elements.save.textContent = isSaved ? "Saved" : "Save Place";
       }
 
+      function markMapLoaded() {
+        window.clearTimeout(mapFallbackTimer);
+        elements.mapFallback.hidden = true;
+      }
+
       function makeRandomPlace() {
         const scope = elements.scope.value;
 
@@ -997,6 +1090,7 @@
         elements.lat.textContent = formatCoord(lat);
         elements.lng.textContent = formatCoord(lng);
         updateMap(lat, lng, place.zoom);
+        updateChinaMapLinks(lat, lng, place.title);
 
         currentPlace = {
           id: `${formatCoord(lat)},${formatCoord(lng)}`,
@@ -1014,6 +1108,7 @@
 
       elements.button.addEventListener("click", updateRandomPlace);
       elements.save.addEventListener("click", saveCurrentPlace);
+      elements.frame.addEventListener("load", markMapLoaded);
       elements.favoriteList.addEventListener("click", (event) => {
         const deleteButton = event.target.closest("[data-delete-id]");
         if (!deleteButton) return;
