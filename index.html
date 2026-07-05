@@ -191,6 +191,14 @@
         gap: 10px;
       }
 
+      .action-label {
+        margin: 4px 0 -4px;
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
       button,
       a,
       select {
@@ -459,11 +467,13 @@
           <a id="openMapLink" class="link-button" href="https://www.openstreetmap.org/" target="_blank" rel="noreferrer">Open Map</a>
           <a id="streetViewLink" class="link-button street-button" href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=31.2304%2C121.4737" target="_blank" rel="noreferrer">Street View</a>
         </div>
+        <p class="action-label">China-friendly maps</p>
         <div class="china-map-row">
           <a id="amapLink" class="link-button" href="https://www.amap.com/" target="_blank" rel="noreferrer">Amap</a>
           <a id="baiduMapLink" class="link-button" href="https://map.baidu.com/" target="_blank" rel="noreferrer">Baidu</a>
           <a id="tencentMapLink" class="link-button" href="https://map.qq.com/" target="_blank" rel="noreferrer">Tencent</a>
         </div>
+      </div>
       </div>
 
       <p class="hint">Street View opens in Google Maps. Not every random point has Street View coverage; city and landmark mode has the highest success rate.</p>
