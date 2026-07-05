@@ -121,6 +121,11 @@
         font-weight: 800;
       }
 
+      .save-row {
+        margin-top: 14px;
+        display: grid;
+      }
+
       .actions {
         display: grid;
         grid-template-columns: 1fr;
@@ -160,6 +165,13 @@
 
       button:active {
         background: var(--green-dark);
+      }
+
+      .save-button {
+        min-height: 42px;
+        border: 1px solid rgba(216, 149, 47, 0.45);
+        background: #fff8eb;
+        color: #7b4d10;
       }
 
       .link-button {
@@ -214,6 +226,100 @@
         font-size: 0.82rem;
         line-height: 1.5;
       }
+
+      .favorites {
+        margin-top: 20px;
+        border-top: 1px solid var(--line);
+        padding-top: 18px;
+      }
+
+      .favorites-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+
+      .favorites h2 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+
+      .count-pill {
+        min-width: 28px;
+        border-radius: 999px;
+        padding: 4px 9px;
+        background: #edf4f1;
+        color: var(--green-dark);
+        font-size: 0.78rem;
+        font-weight: 850;
+        text-align: center;
+      }
+
+      .favorite-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .favorite-empty {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.9rem;
+        line-height: 1.5;
+      }
+
+      .favorite-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 14px;
+      }
+
+      .favorite-title {
+        margin: 0 0 8px;
+        font-weight: 850;
+        line-height: 1.25;
+      }
+
+      .favorite-meta {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.8rem;
+        line-height: 1.5;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .favorite-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .mini-link,
+      .delete-button {
+        min-height: 38px;
+        border-radius: 8px;
+        padding: 0 10px;
+        font-size: 0.86rem;
+        font-weight: 800;
+      }
+
+      .mini-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--line);
+        color: var(--ink);
+        text-decoration: none;
+      }
+
+      .delete-button {
+        border: 1px solid #efd8d6;
+        background: #fff5f4;
+        color: #9c2f25;
+      }
     </style>
   </head>
   <body>
@@ -242,6 +348,9 @@
             <dd id="lngValue">--</dd>
           </div>
         </dl>
+        <div class="save-row">
+          <button id="saveButton" class="save-button" type="button">Save Place</button>
+        </div>
       </section>
 
       <div class="settings">
@@ -288,6 +397,14 @@
       </div>
 
       <p class="hint">Street View opens in Google Maps. Not every random point has Street View coverage; city and landmark mode has the highest success rate.</p>
+
+      <section class="favorites" aria-label="Saved places">
+        <div class="favorites-header">
+          <h2>Saved Places</h2>
+          <span id="favoriteCount" class="count-pill">0</span>
+        </div>
+        <div id="favoriteList" class="favorite-list"></div>
+      </section>
     </main>
 
     <script>
@@ -510,6 +627,7 @@
       const elements = {
         frame: document.querySelector("#mapFrame"),
         button: document.querySelector("#randomButton"),
+        save: document.querySelector("#saveButton"),
         scope: document.querySelector("#scopeSelect"),
         global: document.querySelector("#globalSelect"),
         continent: document.querySelector("#continentSelect"),
@@ -524,7 +642,13 @@
         lng: document.querySelector("#lngValue"),
         mapLink: document.querySelector("#openMapLink"),
         streetLink: document.querySelector("#streetViewLink"),
+        favoriteList: document.querySelector("#favoriteList"),
+        favoriteCount: document.querySelector("#favoriteCount"),
       };
+
+      const FAVORITES_KEY = "randomPlaceExplorerFavorites";
+      let currentPlace = null;
+      let favorites = loadFavorites();
 
       function buildCityOptions() {
         elements.city.innerHTML = citySeeds
@@ -652,6 +776,15 @@
         return value.toFixed(6);
       }
 
+      function formatSavedAt(timestamp) {
+        return new Intl.DateTimeFormat("en", {
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(new Date(timestamp));
+      }
+
       function encodeCoord(lat, lng) {
         return `${lat}%2C${lng}`;
       }
@@ -668,6 +801,88 @@
         elements.frame.src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${encodeCoord(lat, lng)}`;
         elements.mapLink.href = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=${zoom}/${lat}/${lng}`;
         elements.streetLink.href = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${encodeCoord(lat, lng)}`;
+      }
+
+      function loadFavorites() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]");
+          return Array.isArray(saved) ? saved : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function persistFavorites() {
+        localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+      }
+
+      function saveCurrentPlace() {
+        if (!currentPlace) return;
+
+        const existing = favorites.some((favorite) => favorite.id === currentPlace.id);
+        if (existing) {
+          elements.save.textContent = "Saved";
+          return;
+        }
+
+        favorites = [
+          {
+            ...currentPlace,
+            savedAt: Date.now(),
+          },
+          ...favorites,
+        ].slice(0, 50);
+        persistFavorites();
+        renderFavorites();
+        elements.save.textContent = "Saved";
+      }
+
+      function removeFavorite(id) {
+        favorites = favorites.filter((favorite) => favorite.id !== id);
+        persistFavorites();
+        renderFavorites();
+        updateSaveButtonState();
+      }
+
+      function renderFavorites() {
+        elements.favoriteCount.textContent = String(favorites.length);
+
+        if (!favorites.length) {
+          elements.favoriteList.innerHTML = '<p class="favorite-empty">No saved places yet.</p>';
+          return;
+        }
+
+        elements.favoriteList.innerHTML = favorites
+          .map(
+            (favorite) => `
+              <article class="favorite-card">
+                <p class="favorite-title">${escapeHtml(favorite.title)}</p>
+                <p class="favorite-meta">${escapeHtml(favorite.region)} · ${favorite.lat.toFixed(6)}, ${favorite.lng.toFixed(6)}</p>
+                <p class="favorite-meta">Saved ${formatSavedAt(favorite.savedAt)}</p>
+                <div class="favorite-actions">
+                  <a class="mini-link" href="${favorite.mapUrl}" target="_blank" rel="noreferrer">Map</a>
+                  <a class="mini-link" href="${favorite.streetUrl}" target="_blank" rel="noreferrer">Street</a>
+                  <button class="delete-button" type="button" data-delete-id="${favorite.id}">Delete</button>
+                </div>
+              </article>
+            `,
+          )
+          .join("");
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function updateSaveButtonState() {
+        if (!currentPlace) return;
+        const isSaved = favorites.some((favorite) => favorite.id === currentPlace.id);
+        elements.save.textContent = isSaved ? "Saved" : "Save Place";
       }
 
       function makeRandomPlace() {
@@ -712,6 +927,8 @@
       function updateRandomPlace() {
         const place = makeRandomPlace();
         const [lat, lng] = place.point;
+        const mapUrl = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=${place.zoom}/${lat}/${lng}`;
+        const streetUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${encodeCoord(lat, lng)}`;
 
         elements.region.textContent = place.region;
         elements.distance.textContent = place.detail;
@@ -719,9 +936,28 @@
         elements.lat.textContent = formatCoord(lat);
         elements.lng.textContent = formatCoord(lng);
         updateMap(lat, lng, place.zoom);
+
+        currentPlace = {
+          id: `${formatCoord(lat)},${formatCoord(lng)}`,
+          title: place.title,
+          region: place.region,
+          detail: place.detail,
+          lat,
+          lng,
+          zoom: place.zoom,
+          mapUrl,
+          streetUrl,
+        };
+        updateSaveButtonState();
       }
 
       elements.button.addEventListener("click", updateRandomPlace);
+      elements.save.addEventListener("click", saveCurrentPlace);
+      elements.favoriteList.addEventListener("click", (event) => {
+        const deleteButton = event.target.closest("[data-delete-id]");
+        if (!deleteButton) return;
+        removeFavorite(deleteButton.dataset.deleteId);
+      });
       buildCityOptions();
       elements.scope.addEventListener("change", () => {
         syncFilterVisibility();
@@ -732,6 +968,7 @@
       elements.city.addEventListener("change", updateRandomPlace);
       syncFilterVisibility();
       updateRandomPlace();
+      renderFavorites();
     </script>
   </body>
 </html>
