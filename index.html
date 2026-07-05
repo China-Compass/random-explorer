@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Random Place Explorer</title>
+    <style>
+      :root {
+        --ink: #1f2a2e;
+        --muted: #66777f;
+        --line: #d9e1e2;
+        --paper: #f7f4ed;
+        --green: #1f7a62;
+        --green-dark: #135544;
+        --blue: #2f6f9f;
+        --gold: #d8952f;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Arial, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--paper);
+        color: var(--ink);
+      }
+
+      .map-wrap {
+        height: 55vh;
+        min-height: 340px;
+        background: #dce9e6;
+        border-bottom: 1px solid var(--line);
+      }
+
+      iframe {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: #dce9e6;
+      }
+
+      .panel {
+        padding: 22px 18px 30px;
+        background: #fffdf8;
+      }
+
+      .eyebrow {
+        margin: 0 0 8px;
+        color: var(--green);
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 2.25rem;
+        line-height: 1;
+      }
+
+      .subhead {
+        margin: 12px 0 18px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .result-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 18px;
+      }
+
+      .result-topline {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        color: var(--muted);
+        font-size: 0.86rem;
+      }
+
+      .result-topline span:first-child {
+        color: var(--blue);
+        font-weight: 800;
+      }
+
+      .place-name {
+        margin: 16px 0 18px;
+        font-size: 1.42rem;
+        font-weight: 850;
+        line-height: 1.22;
+      }
+
+      .coords {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin: 0;
+      }
+
+      .coords div {
+        padding: 12px;
+        border-radius: 6px;
+        background: #edf4f1;
+      }
+
+      .coords dt {
+        color: var(--muted);
+        font-size: 0.76rem;
+      }
+
+      .coords dd {
+        margin: 6px 0 0;
+        font-variant-numeric: tabular-nums;
+        font-weight: 800;
+      }
+
+      .actions {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .link-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      button,
+      a,
+      select {
+        font: inherit;
+      }
+
+      button,
+      .link-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 48px;
+        border-radius: 8px;
+        padding: 0 12px;
+        text-decoration: none;
+        font-weight: 800;
+      }
+
+      button {
+        border: 0;
+        background: var(--green);
+        color: #fff;
+      }
+
+      button:active {
+        background: var(--green-dark);
+      }
+
+      .link-button {
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--ink);
+      }
+
+      .street-button {
+        border-color: rgba(216, 149, 47, 0.45);
+        color: #7b4d10;
+      }
+
+      .settings {
+        margin-top: 18px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .settings label {
+        color: var(--muted);
+        font-size: 0.84rem;
+        font-weight: 700;
+      }
+
+      .filter-grid {
+        display: grid;
+        gap: 10px;
+      }
+
+      .filter-field {
+        display: grid;
+        gap: 6px;
+      }
+
+      .filter-field[hidden] {
+        display: none;
+      }
+
+      select {
+        min-height: 44px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0 12px;
+        background: #fff;
+        color: var(--ink);
+      }
+
+      .hint {
+        margin: 12px 0 0;
+        color: var(--muted);
+        font-size: 0.82rem;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="map-wrap" aria-label="Map">
+      <iframe id="mapFrame" title="Random place map" loading="eager"></iframe>
+    </section>
+
+    <main class="panel">
+      <p class="eyebrow">Random Earth</p>
+      <h1>Random Place Explorer</h1>
+      <p class="subhead">Jump to a random place on Earth. City mode is better for Street View; land mode is more of a true geography lucky draw.</p>
+
+      <section class="result-card">
+        <div class="result-topline">
+          <span id="regionLabel">Earth</span>
+          <span id="distanceLabel">Ready</span>
+        </div>
+        <p id="placeName" class="place-name">Tap once and let the world decide.</p>
+        <dl class="coords">
+          <div>
+            <dt>Latitude</dt>
+            <dd id="latValue">--</dd>
+          </div>
+          <div>
+            <dt>Longitude</dt>
+            <dd id="lngValue">--</dd>
+          </div>
+        </dl>
+      </section>
+
+      <div class="actions">
+        <button id="randomButton" type="button">Random Place</button>
+        <div class="link-row">
+          <a id="openMapLink" class="link-button" href="https://www.openstreetmap.org/" target="_blank" rel="noreferrer">Open Map</a>
+          <a id="streetViewLink" class="link-button street-button" href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=31.2304%2C121.4737" target="_blank" rel="noreferrer">Street View</a>
+        </div>
+      </div>
+
+      <div class="settings">
+        <div class="filter-grid" aria-label="Random range filters">
+          <div class="filter-field">
+            <label for="scopeSelect">Range</label>
+            <select id="scopeSelect">
+              <option value="global">Global</option>
+              <option value="continent">Continent</option>
+              <option value="city">City</option>
+            </select>
+          </div>
+          <div id="globalField" class="filter-field">
+            <label for="globalSelect">Global Mode</label>
+            <select id="globalSelect">
+              <option value="cities">Cities and Landmarks</option>
+              <option value="land">Land Explorer</option>
+            </select>
+          </div>
+          <div id="continentField" class="filter-field" hidden>
+            <label for="continentSelect">Continent</label>
+            <select id="continentSelect">
+              <option value="asia">Asia Land</option>
+              <option value="europe">Europe Land</option>
+              <option value="northAmerica">North America Land</option>
+              <option value="southAmerica">South America Land</option>
+              <option value="africa">Africa Land</option>
+              <option value="oceania">Oceania Land</option>
+            </select>
+          </div>
+          <div id="cityField" class="filter-field" hidden>
+            <label for="citySelect">City</label>
+            <select id="citySelect"></select>
+          </div>
+        </div>
+      </div>
+
+      <p class="hint">Street View opens in Google Maps. Not every random point has Street View coverage; city and landmark mode has the highest success rate.</p>
+    </main>
+
+    <script>
+      const shanghaiPolygon = [
+        [31.8408, 121.141],
+        [31.778, 121.573],
+        [31.694, 121.878],
+        [31.518, 121.972],
+        [31.269, 121.923],
+        [31.011, 121.857],
+        [30.804, 121.602],
+        [30.713, 121.254],
+        [30.787, 120.916],
+        [31.016, 120.87],
+        [31.232, 120.965],
+        [31.485, 121.058],
+      ];
+
+      const shanghaiDistricts = [
+        ["Huangpu District", 31.2317, 121.4846],
+        ["Xuhui District", 31.1885, 121.4368],
+        ["Changning District", 31.2204, 121.4246],
+        ["Jing'an District", 31.2296, 121.4598],
+        ["Putuo District", 31.2496, 121.3954],
+        ["Hongkou District", 31.2646, 121.5051],
+        ["Yangpu District", 31.2595, 121.5261],
+        ["Pudong New Area", 31.2215, 121.5447],
+        ["Minhang District", 31.1128, 121.3817],
+        ["Baoshan District", 31.4051, 121.4896],
+        ["Jiading District", 31.3756, 121.2653],
+        ["Jinshan District", 30.7428, 121.3419],
+        ["Songjiang District", 31.0322, 121.2277],
+        ["Qingpu District", 31.1509, 121.1242],
+        ["Fengxian District", 30.9178, 121.474],
+        ["Chongming District", 31.628, 121.3975],
+      ];
+
+      const citySeeds = [
+        ["Tokyo, Japan", 35.6812, 139.7671],
+        ["Seoul, South Korea", 37.5665, 126.978],
+        ["Singapore", 1.3521, 103.8198],
+        ["Bangkok, Thailand", 13.7563, 100.5018],
+        ["Kuala Lumpur, Malaysia", 3.139, 101.6869],
+        ["Hong Kong", 22.3193, 114.1694],
+        ["Taipei, Taiwan", 25.033, 121.5654],
+        ["Shanghai, China", 31.2304, 121.4737],
+        ["Beijing, China", 39.9042, 116.4074],
+        ["Dubai, United Arab Emirates", 25.2048, 55.2708],
+        ["Istanbul, Türkiye", 41.0082, 28.9784],
+        ["Paris, France", 48.8566, 2.3522],
+        ["London, United Kingdom", 51.5072, -0.1276],
+        ["Amsterdam, Netherlands", 52.3676, 4.9041],
+        ["Berlin, Germany", 52.52, 13.405],
+        ["Rome, Italy", 41.9028, 12.4964],
+        ["Barcelona, Spain", 41.3874, 2.1686],
+        ["Lisbon, Portugal", 38.7223, -9.1393],
+        ["Prague, Czechia", 50.0755, 14.4378],
+        ["Vienna, Austria", 48.2082, 16.3738],
+        ["Stockholm, Sweden", 59.3293, 18.0686],
+        ["New York, United States", 40.7128, -74.006],
+        ["Los Angeles, United States", 34.0522, -118.2437],
+        ["San Francisco, United States", 37.7749, -122.4194],
+        ["Chicago, United States", 41.8781, -87.6298],
+        ["Seattle, United States", 47.6062, -122.3321],
+        ["Vancouver, Canada", 49.2827, -123.1207],
+        ["Toronto, Canada", 43.6532, -79.3832],
+        ["Mexico City, Mexico", 19.4326, -99.1332],
+        ["Rio de Janeiro, Brazil", -22.9068, -43.1729],
+        ["Buenos Aires, Argentina", -34.6037, -58.3816],
+        ["Santiago, Chile", -33.4489, -70.6693],
+        ["Cape Town, South Africa", -33.9249, 18.4241],
+        ["Cairo, Egypt", 30.0444, 31.2357],
+        ["Marrakesh, Morocco", 31.6295, -7.9811],
+        ["Sydney, Australia", -33.8688, 151.2093],
+        ["Melbourne, Australia", -37.8136, 144.9631],
+        ["Auckland, New Zealand", -36.8509, 174.7645],
+      ];
+
+      const landRegions = [
+        ["Interior Alaska", 61, 67, -156, -143],
+        ["Western Canada Interior", 50, 60, -120, -102],
+        ["Eastern Canada Interior", 47, 55, -95, -72],
+        ["Western United States Interior", 35, 46, -116, -104],
+        ["Central United States Plains", 33, 48, -103, -88],
+        ["Southeastern United States Interior", 31, 39, -90, -78],
+        ["Mexican Plateau", 18, 25, -104, -97],
+        ["Central American Highlands", 12, 17, -90, -84],
+        ["Northern Andes", -5, 10, -78, -70],
+        ["Amazon Interior", -12, 2, -69, -52],
+        ["Brazilian Highlands", -24, -8, -58, -42],
+        ["Central Andes", -28, -10, -72, -66],
+        ["Patagonian Interior", -49, -38, -72, -67],
+        ["Iberian Interior", 39, 42, -7, -2],
+        ["Central France", 45, 48, 1, 5],
+        ["German-Polish Plain", 50, 53, 8, 20],
+        ["Northern Alps Foothills", 46, 48, 7, 15],
+        ["Balkan Interior", 42, 45, 19, 25],
+        ["Eastern European Plain", 48, 56, 24, 38],
+        ["Scandinavian Interior", 60, 67, 12, 26],
+        ["Moroccan Interior", 30, 33, -8, -4],
+        ["Western Sahara Interior", 20, 28, -12, 5],
+        ["Central Sahara", 19, 28, 6, 24],
+        ["Western Nile Interior", 22, 29, 27, 31],
+        ["East African Highlands", -4, 10, 33, 40],
+        ["Congo Basin", -6, 4, 16, 28],
+        ["Southern African Interior", -29, -17, 18, 31],
+        ["Ethiopian Highlands", 7, 13, 37, 42],
+        ["Arabian Peninsula Interior", 18, 28, 42, 53],
+        ["Anatolian Interior", 38, 41, 30, 40],
+        ["Iranian Plateau", 28, 36, 49, 61],
+        ["Central Asian Steppe", 42, 51, 55, 73],
+        ["Kazakh Interior", 45, 54, 66, 82],
+        ["Western Siberia", 55, 64, 70, 94],
+        ["Central Siberia", 56, 66, 96, 124],
+        ["Mongolian Plateau", 43, 50, 96, 116],
+        ["Northwest China", 36, 45, 82, 101],
+        ["North China Interior", 34, 41, 108, 118],
+        ["Southwest China Highlands", 24, 31, 98, 108],
+        ["Tibetan Plateau", 29, 36, 80, 96],
+        ["Northern India Plain", 22, 29, 73, 88],
+        ["Deccan Plateau", 12, 21, 74, 81],
+        ["Mainland Southeast Asia", 14, 21, 99, 106],
+        ["Thai-Myanmar Highlands", 17, 24, 96, 101],
+        ["Western Australia Interior", -31, -19, 119, 130],
+        ["Central Australia", -30, -20, 130, 143],
+        ["Eastern Australia Interior", -35, -24, 143, 151],
+        ["South Island Interior", -45, -42, 169, 172],
+      ];
+
+      const waterExclusions = [
+        [40.8, 49.5, -92.5, -75.0],
+        [36.0, 47.5, 46.0, 55.5],
+        [-3.5, 1.5, 31.0, 34.5],
+        [-8.8, -2.0, 28.5, 32.0],
+        [11.0, 14.5, 13.0, 15.5],
+        [45.0, 47.8, 74.0, 78.5],
+        [8.0, 12.5, 80.0, 82.5],
+        [1.0, 7.0, 98.0, 104.5],
+      ];
+
+      const continentRegionNames = {
+        asia: [
+          "Arabian Peninsula Interior",
+          "Anatolian Interior",
+          "Iranian Plateau",
+          "Central Asian Steppe",
+          "Kazakh Interior",
+          "Western Siberia",
+          "Central Siberia",
+          "Mongolian Plateau",
+          "Northwest China",
+          "North China Interior",
+          "Southwest China Highlands",
+          "Tibetan Plateau",
+          "Northern India Plain",
+          "Deccan Plateau",
+          "Mainland Southeast Asia",
+          "Thai-Myanmar Highlands",
+        ],
+        europe: [
+          "Iberian Interior",
+          "Central France",
+          "German-Polish Plain",
+          "Northern Alps Foothills",
+          "Balkan Interior",
+          "Eastern European Plain",
+          "Scandinavian Interior",
+        ],
+        northAmerica: [
+          "Interior Alaska",
+          "Western Canada Interior",
+          "Eastern Canada Interior",
+          "Western United States Interior",
+          "Central United States Plains",
+          "Southeastern United States Interior",
+          "Mexican Plateau",
+          "Central American Highlands",
+        ],
+        southAmerica: [
+          "Northern Andes",
+          "Amazon Interior",
+          "Brazilian Highlands",
+          "Central Andes",
+          "Patagonian Interior",
+        ],
+        africa: [
+          "Moroccan Interior",
+          "Western Sahara Interior",
+          "Central Sahara",
+          "Western Nile Interior",
+          "East African Highlands",
+          "Congo Basin",
+          "Southern African Interior",
+          "Ethiopian Highlands",
+        ],
+        oceania: [
+          "Western Australia Interior",
+          "Central Australia",
+          "Eastern Australia Interior",
+          "South Island Interior",
+        ],
+      };
+
+      const continentLabels = {
+        asia: "Asia",
+        europe: "Europe",
+        northAmerica: "North America",
+        southAmerica: "South America",
+        africa: "Africa",
+        oceania: "Oceania",
+      };
+
+      const ranges = {
+        shanghai: {
+          bounds: { minLat: 30.7, maxLat: 31.86, minLng: 120.85, maxLng: 122.02 },
+          polygon: shanghaiPolygon,
+        },
+      };
+
+      const elements = {
+        frame: document.querySelector("#mapFrame"),
+        button: document.querySelector("#randomButton"),
+        scope: document.querySelector("#scopeSelect"),
+        global: document.querySelector("#globalSelect"),
+        continent: document.querySelector("#continentSelect"),
+        city: document.querySelector("#citySelect"),
+        globalField: document.querySelector("#globalField"),
+        continentField: document.querySelector("#continentField"),
+        cityField: document.querySelector("#cityField"),
+        region: document.querySelector("#regionLabel"),
+        distance: document.querySelector("#distanceLabel"),
+        place: document.querySelector("#placeName"),
+        lat: document.querySelector("#latValue"),
+        lng: document.querySelector("#lngValue"),
+        mapLink: document.querySelector("#openMapLink"),
+        streetLink: document.querySelector("#streetViewLink"),
+      };
+
+      function buildCityOptions() {
+        elements.city.innerHTML = citySeeds
+          .map(([name], index) => `<option value="city:${index}">${name}</option>`)
+          .join("");
+      }
+
+      function syncFilterVisibility() {
+        elements.globalField.hidden = elements.scope.value !== "global";
+        elements.continentField.hidden = elements.scope.value !== "continent";
+        elements.cityField.hidden = elements.scope.value !== "city";
+      }
+
+      function randomBetween(min, max) {
+        return min + Math.random() * (max - min);
+      }
+
+      function randomOffset(radiusKm) {
+        const distance = Math.sqrt(Math.random()) * radiusKm;
+        const angle = Math.random() * Math.PI * 2;
+        return {
+          lat: (distance * Math.cos(angle)) / 111,
+          lng: (distance * Math.sin(angle)) / 111,
+        };
+      }
+
+      function isInsidePolygon(point, polygon) {
+        const [lat, lng] = point;
+        let inside = false;
+
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+          const [latI, lngI] = polygon[i];
+          const [latJ, lngJ] = polygon[j];
+          const intersects =
+            lngI > lng !== lngJ > lng &&
+            lat < ((latJ - latI) * (lng - lngI)) / (lngJ - lngI) + latI;
+
+          if (intersects) inside = !inside;
+        }
+
+        return inside;
+      }
+
+      function makeShanghaiPoint() {
+        const range = ranges.shanghai;
+
+        for (let attempts = 0; attempts < 800; attempts += 1) {
+          const point = [
+            randomBetween(range.bounds.minLat, range.bounds.maxLat),
+            randomBetween(range.bounds.minLng, range.bounds.maxLng),
+          ];
+
+          if (isInsidePolygon(point, range.polygon)) return point;
+        }
+
+        return [31.2304, 121.4737];
+      }
+
+      function makeCityPoint(seed = citySeeds[Math.floor(Math.random() * citySeeds.length)]) {
+        const offset = randomOffset(8);
+        const lat = seed[1] + offset.lat;
+        const lng = seed[2] + offset.lng / Math.max(Math.cos((seed[1] * Math.PI) / 180), 0.25);
+
+        return {
+          point: [lat, lng],
+          region: seed[0],
+          title: `Random point near ${seed[0]}`,
+          detail: "Higher Street View chance",
+          zoom: 13,
+        };
+      }
+
+      function makeLandPoint(regions = landRegions, scopeName = "Global") {
+        for (let attempts = 0; attempts < 1000; attempts += 1) {
+          const region = regions[Math.floor(Math.random() * regions.length)];
+          const [, minLat, maxLat, minLng, maxLng] = region;
+          const lat = randomBetween(minLat, maxLat);
+          const lng = randomBetween(minLng, maxLng);
+
+          if (isInExcludedWater(lat, lng)) continue;
+
+          return {
+            point: [lat, lng],
+            region: region[0],
+            title: `Random land point in ${region[0]}`,
+            detail: `${scopeName} · approximate land area`,
+            zoom: 8,
+          };
+        }
+
+        return makeCityPoint();
+      }
+
+      function isInExcludedWater(lat, lng) {
+        return waterExclusions.some(
+          ([minLat, maxLat, minLng, maxLng]) =>
+            lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng,
+        );
+      }
+
+      function distanceKm(a, b) {
+        const earthRadius = 6371;
+        const toRad = (value) => (value * Math.PI) / 180;
+        const dLat = toRad(b[0] - a[0]);
+        const dLng = toRad(b[1] - a[1]);
+        const lat1 = toRad(a[0]);
+        const lat2 = toRad(b[0]);
+        const h =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+
+        return 2 * earthRadius * Math.asin(Math.sqrt(h));
+      }
+
+      function nearestShanghaiDistrict(point) {
+        return shanghaiDistricts
+          .map(([name, lat, lng]) => ({
+            name,
+            distance: distanceKm(point, [lat, lng]),
+          }))
+          .sort((a, b) => a.distance - b.distance)[0];
+      }
+
+      function formatCoord(value) {
+        return value.toFixed(6);
+      }
+
+      function encodeCoord(lat, lng) {
+        return `${lat}%2C${lng}`;
+      }
+
+      function updateMap(lat, lng, zoom) {
+        const delta = zoom >= 13 ? 0.025 : zoom >= 10 ? 0.08 : 1.2;
+        const bbox = [
+          lng - delta,
+          lat - delta,
+          lng + delta,
+          lat + delta,
+        ].join("%2C");
+
+        elements.frame.src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${encodeCoord(lat, lng)}`;
+        elements.mapLink.href = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=${zoom}/${lat}/${lng}`;
+        elements.streetLink.href = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${encodeCoord(lat, lng)}`;
+      }
+
+      function makeRandomPlace() {
+        const scope = elements.scope.value;
+
+        if (scope === "global") {
+          return elements.global.value === "land" ? makeLandPoint() : makeCityPoint();
+        }
+
+        if (scope === "city") {
+          const [, value] = elements.city.value.split(":");
+          const seed = citySeeds[Number(value)] || citySeeds[0];
+          if (seed[0] === "Shanghai, China") {
+            return makeShanghaiPlace();
+          }
+
+          return makeCityPoint(seed);
+        }
+
+        if (scope === "continent") {
+          const value = elements.continent.value;
+          const names = continentRegionNames[value] || [];
+          const regions = landRegions.filter(([name]) => names.includes(name));
+          return makeLandPoint(regions.length ? regions : landRegions, continentLabels[value] || "Continent");
+        }
+
+        return makeCityPoint();
+      }
+
+      function makeShanghaiPlace() {
+          const point = makeShanghaiPoint();
+          const nearest = nearestShanghaiDistrict(point);
+          return {
+            point,
+            region: nearest.name,
+            title: `Random point near ${nearest.name}`,
+            detail: `About ${nearest.distance.toFixed(1)} km from district center`,
+            zoom: 12,
+          };
+      }
+
+      function updateRandomPlace() {
+        const place = makeRandomPlace();
+        const [lat, lng] = place.point;
+
+        elements.region.textContent = place.region;
+        elements.distance.textContent = place.detail;
+        elements.place.textContent = place.title;
+        elements.lat.textContent = formatCoord(lat);
+        elements.lng.textContent = formatCoord(lng);
+        updateMap(lat, lng, place.zoom);
+      }
+
+      elements.button.addEventListener("click", updateRandomPlace);
+      buildCityOptions();
+      elements.scope.addEventListener("change", () => {
+        syncFilterVisibility();
+        updateRandomPlace();
+      });
+      elements.global.addEventListener("change", updateRandomPlace);
+      elements.continent.addEventListener("change", updateRandomPlace);
+      elements.city.addEventListener("change", updateRandomPlace);
+      syncFilterVisibility();
+      updateRandomPlace();
+    </script>
+  </body>
+</html>
